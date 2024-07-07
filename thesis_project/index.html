@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Septic Tank Monitoring System</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Add Chart.js CDN -->
+</head>
+<body>
+    <header>
+        <img src="header.jpg" alt="Group A">
+        <h1>Septic Tank Monitoring System</h1>
+    </header>
+    <div class="container">
+        <h2>Septic Tank Capacity Levels</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date and Time</th>
+                    <th>Sensor Address</th>
+                    <th>Septic Tank Capacity Level</th>
+                </tr>
+            </thead>
+            <tbody id="data-table">
+                <!-- Data will be inserted here -->
+            </tbody>
+        </table>
+        
+        <canvas id="capacityChart" width="400" height="200"></canvas>
+        
+        <div id="3d-container"></div> <!-- 3D container for the septic tank visualization -->
+
+        <h2>Historical Data</h2>
+        <canvas id="historicalChart" width="400" height="200"></canvas>
+        <p id="overflow-estimation">Overflow estimation: Calculating...</p>
+    </div>
+    <footer class="footer">
+        <p>&copy; 2024 Septic Tank Monitoring System. All rights reserved.</p>
+    </footer>
+    
+    <script>
+        async function fetchData() {
+            try {
+                const response = await fetch('fetch_data.php');
+                const data = await response.json();
+                
+                let tableBody = '';
+                let labels = [];
+                let capacityLevels = [];
+
+                data.forEach(row => {
+                    tableBody += `<tr>
+                        <td>${row.datetime}</td>
+                        <td>${row.sensor_address}</td>
+                        <td>${row.capacity_level}</td>
+                    </tr>`;
+                    labels.push(row.datetime);
+                    capacityLevels.push(row.capacity_level);
+                });
+
+                document.getElementById('data-table').innerHTML = tableBody;
+
+                const ctx = document.getElementById('capacityChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Septic Tank Capacity Level',
+                            data: capacityLevels,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'hour'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+                // Update the 3D septic tank visualization with the current capacity
+                const latestCapacity = capacityLevels[capacityLevels.length - 1];
+                updateSepticTank(latestCapacity);
+
+                // Estimation logic (simple example based on average increase per hour)
+                let totalIncrease = 0;
+                for (let i = 1; i < capacityLevels.length; i++) {
+                    totalIncrease += capacityLevels[i] - capacityLevels[i - 1];
+                }
+                const avgIncrease = totalIncrease / (capacityLevels.length - 1);
+                const currentLevel = capacityLevels[capacityLevels.length - 1];
+                const remainingCapacity = 100 - currentLevel; // Assuming 100 is the full capacity
+                const hoursToOverflow = remainingCapacity / avgIncrease;
+
+                document.getElementById('overflow-estimation').innerText = `Overflow estimation: ${hoursToOverflow.toFixed(2)} hours`;
+                
+                // Create the historical data chart
+                const historicalCtx = document.getElementById('historicalChart').getContext('2d');
+                new Chart(historicalCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Historical Septic Tank Capacity Level',
+                            data: capacityLevels,
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'hour'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        fetchData();
+    </script>
+    <script src="3d_septic_tank.js"></script> <!-- Custom script for the 3D septic tank visualization -->
+</body>
+</html>
